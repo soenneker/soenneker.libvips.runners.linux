@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -40,8 +41,11 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         if (asset is null)
             throw new FileNotFoundException($"Could not find a stable {Repository} release asset matching '{AssetPattern}'.");
 
+        string tarFile = Path.Combine(downloadDirectory, Path.GetFileNameWithoutExtension(asset));
+        await DecompressGzip(asset, tarFile, cancellationToken);
+
         string extractionDirectory = await _directoryUtil.CreateTempDirectory(cancellationToken);
-        await _tarUtil.Extract(asset, extractionDirectory, cancellationToken);
+        await _tarUtil.Extract(tarFile, extractionDirectory, cancellationToken);
 
         string stageDirectory = await _directoryUtil.CreateTempDirectory(cancellationToken);
         CopyRequiredFile(extractionDirectory, stageDirectory, Path.Combine("lib", NativeFileName));
@@ -50,6 +54,17 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
 
         _logger.LogInformation("Prepared Linux x64 libvips runtime at {StageDirectory}", stageDirectory);
         return stageDirectory;
+    }
+
+    private static async ValueTask DecompressGzip(string source, string destination, CancellationToken cancellationToken)
+    {
+        await using var sourceStream = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, 81920,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        await using var gzipStream = new GZipStream(sourceStream, CompressionMode.Decompress);
+        await using var destinationStream = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None, 81920,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+        await gzipStream.CopyToAsync(destinationStream, cancellationToken);
     }
 
     private static void CopyRequiredFile(string sourceRoot, string destinationRoot, string relativePath)
