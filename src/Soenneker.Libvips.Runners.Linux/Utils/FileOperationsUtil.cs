@@ -99,6 +99,17 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
 
         string sourceText = await File.ReadAllTextAsync(sourcePath, cancellationToken);
         sourceText = sourceText.Replace("#include <vips/internal.h>", "#include \"internal.h\"", StringComparison.Ordinal);
+
+        // The G_IS_PARAM_SPEC_* macros reference g_param_spec_types directly. Linking that
+        // data symbol from the system GObject runtime would load a second GLib beside the
+        // one bundled into libvips, so use the argument value type instead.
+        sourceText = sourceText
+            .Replace("G_IS_PARAM_SPEC_ENUM(pspec)", "G_TYPE_FUNDAMENTAL(type) == G_TYPE_ENUM", StringComparison.Ordinal)
+            .Replace("G_IS_PARAM_SPEC_BOOLEAN(pspec)", "G_TYPE_FUNDAMENTAL(type) == G_TYPE_BOOLEAN", StringComparison.Ordinal)
+            .Replace("G_IS_PARAM_SPEC_DOUBLE(pspec)", "G_TYPE_FUNDAMENTAL(type) == G_TYPE_DOUBLE", StringComparison.Ordinal)
+            .Replace("G_IS_PARAM_SPEC_INT(pspec)", "G_TYPE_FUNDAMENTAL(type) == G_TYPE_INT", StringComparison.Ordinal)
+            .Replace("G_IS_PARAM_SPEC_OBJECT(pspec)", "G_TYPE_FUNDAMENTAL(type) == G_TYPE_OBJECT", StringComparison.Ordinal);
+
         await File.WriteAllTextAsync(sourcePath, sourceText, cancellationToken);
 
         string outputPath = Path.Combine(binDirectory, tool);
