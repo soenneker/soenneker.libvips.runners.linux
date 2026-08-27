@@ -29,5 +29,6 @@
         <PackageReference Include="Soenneker.Managers.Runners" Version="4.0.2388" />
         <PackageReference Include="Soenneker.Utils.Directory" Version="4.0.902" />
         <PackageReference Include="Soenneker.Utils.File.Download" Version="4.0.1695" />
+        <PackageReference Include="Soenneker.Utils.Process" Version="4.0.1525" />
     </ItemGroup>
 </Project>

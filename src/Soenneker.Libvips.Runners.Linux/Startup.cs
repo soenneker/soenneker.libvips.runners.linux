@@ -5,6 +5,7 @@ using Soenneker.Libvips.Runners.Linux.Utils;
 using Soenneker.Libvips.Runners.Linux.Utils.Abstract;
 using Soenneker.Managers.Runners.Registrars;
 using Soenneker.Utils.Directory.Registrars;
+using Soenneker.Utils.Process.Registrars;
 
 namespace Soenneker.Libvips.Runners.Linux;
 
@@ -15,6 +16,7 @@ public static class Startup
         services.AddHostedService<ConsoleHostedService>()
             .AddSingleton<IFileOperationsUtil, FileOperationsUtil>()
             .AddDirectoryUtilAsSingleton()
+            .AddProcessUtilAsSingleton()
             .AddTarUtilAsSingleton()
             .AddGitHubRepositoriesReleasesUtilAsSingleton()
             .AddRunnersManagerAsSingleton();
