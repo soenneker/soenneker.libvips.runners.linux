@@ -64,13 +64,8 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         string version = versions.RootElement.GetProperty("vips").GetString()
                          ?? throw new InvalidOperationException("The libvips distribution did not specify its vips version.");
 
-        string internalHeader = Path.Combine(stageDirectory, "include", "vips", "internal.h");
-        string? header = await _fileDownloadUtil.Download(
-            $"https://raw.githubusercontent.com/libvips/libvips/v{version}/libvips/include/vips/internal.h",
-            filePath: internalHeader, log: false, cancellationToken: cancellationToken);
-
-        if (header is null)
-            throw new FileNotFoundException($"Could not download internal.h for libvips {version}.");
+        await DownloadHeader("vips.h", version, stageDirectory, cancellationToken);
+        await DownloadHeader("internal.h", version, stageDirectory, cancellationToken);
 
         await BuildTool("vips", version, stageDirectory, binDirectory, cancellationToken);
         await BuildTool("vipsheader", version, stageDirectory, binDirectory, cancellationToken);
@@ -83,6 +78,17 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
 
         _logger.LogInformation("Prepared Linux x64 libvips runtime at {StageDirectory}", stageDirectory);
         return stageDirectory;
+    }
+
+    private async ValueTask DownloadHeader(string name, string version, string stageDirectory, CancellationToken cancellationToken)
+    {
+        string headerPath = Path.Combine(stageDirectory, "include", "vips", name);
+        string? header = await _fileDownloadUtil.Download(
+            $"https://raw.githubusercontent.com/libvips/libvips/v{version}/libvips/include/vips/{name}",
+            filePath: headerPath, log: false, cancellationToken: cancellationToken);
+
+        if (header is null)
+            throw new FileNotFoundException($"Could not download {name} for libvips {version}.");
     }
 
     private async ValueTask BuildTool(string tool, string version, string stageDirectory, string binDirectory, CancellationToken cancellationToken)
