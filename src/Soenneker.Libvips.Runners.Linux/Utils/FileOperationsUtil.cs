@@ -80,8 +80,7 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
     private async ValueTask BuildTool(string tool, string version, string stageDirectory, string binDirectory, CancellationToken cancellationToken)
     {
         string buildDirectory = Path.Combine(stageDirectory, "build", tool);
-        string headerDirectory = Path.Combine(buildDirectory, "vips");
-        Directory.CreateDirectory(headerDirectory);
+        Directory.CreateDirectory(buildDirectory);
 
         string sourcePath = Path.Combine(buildDirectory, $"{tool}.c");
         string? source = await _fileDownloadUtil.Download($"https://raw.githubusercontent.com/libvips/libvips/v{version}/tools/{tool}.c",
@@ -90,15 +89,17 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         if (source is null)
             throw new FileNotFoundException($"Could not download {tool}.c for libvips {version}.");
 
-        foreach (string headerName in new[] {"vips.h", "internal.h"})
-        {
-            string? header = await _fileDownloadUtil.Download(
-                $"https://raw.githubusercontent.com/libvips/libvips/v{version}/libvips/include/vips/{headerName}",
-                filePath: Path.Combine(headerDirectory, headerName), log: false, cancellationToken: cancellationToken);
+        string internalHeaderPath = Path.Combine(buildDirectory, "internal.h");
+        string? header = await _fileDownloadUtil.Download(
+            $"https://raw.githubusercontent.com/libvips/libvips/v{version}/libvips/include/vips/internal.h",
+            filePath: internalHeaderPath, log: false, cancellationToken: cancellationToken);
 
-            if (header is null)
-                throw new FileNotFoundException($"Could not download {headerName} for libvips {version}.");
-        }
+        if (header is null || !File.Exists(internalHeaderPath))
+            throw new FileNotFoundException($"Could not download internal.h for libvips {version}.");
+
+        string sourceText = await File.ReadAllTextAsync(sourcePath, cancellationToken);
+        sourceText = sourceText.Replace("#include <vips/internal.h>", "#include \"internal.h\"", StringComparison.Ordinal);
+        await File.WriteAllTextAsync(sourcePath, sourceText, cancellationToken);
 
         string outputPath = Path.Combine(binDirectory, tool);
         string command = $"gcc -O2 -DGETTEXT_PACKAGE=\\\"vips\\\" -I\"{buildDirectory}\" -I\"{stageDirectory}/include\" " +
