@@ -84,12 +84,10 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
     {
         string sourcePath = Path.Combine(stageDirectory, $"{tool}.c");
         string? source = await _fileDownloadUtil.Download($"https://raw.githubusercontent.com/libvips/libvips/v{version}/tools/{tool}.c",
-            log: false, cancellationToken: cancellationToken);
+            filePath: sourcePath, log: false, cancellationToken: cancellationToken);
 
         if (source is null)
             throw new FileNotFoundException($"Could not download {tool}.c for libvips {version}.");
-
-        await File.WriteAllTextAsync(sourcePath, source, cancellationToken);
 
         string outputPath = Path.Combine(binDirectory, tool);
         string command = $"gcc -O2 -DGETTEXT_PACKAGE=\\\"vips\\\" -I\"{stageDirectory}/include\" " +
