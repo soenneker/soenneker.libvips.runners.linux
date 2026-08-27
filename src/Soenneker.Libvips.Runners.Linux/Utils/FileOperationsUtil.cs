@@ -103,8 +103,8 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
 
         string outputPath = Path.Combine(binDirectory, tool);
         string command = $"gcc -O2 -DGETTEXT_PACKAGE='\"vips\"' -I\"{buildDirectory}\" -I\"{stageDirectory}/include\" " +
-                         $"$(pkg-config --cflags glib-2.0 gobject-2.0 gio-2.0) \"{sourcePath}\" -L\"{stageDirectory}/lib\" " +
-                         $"-Wl,-rpath,'$ORIGIN/../lib' -lvips $(pkg-config --libs glib-2.0 gobject-2.0 gio-2.0) -o \"{outputPath}\"";
+                         $"$(pkg-config --cflags glib-2.0 gobject-2.0 gio-2.0) \"{sourcePath}\" \"{stageDirectory}/lib/libvips.so.42\" " +
+                         $"-Wl,-rpath,'$ORIGIN/../lib' $(pkg-config --libs glib-2.0 gobject-2.0 gio-2.0) -o \"{outputPath}\"";
 
         await _processUtil.BashRun(command, stageDirectory, cancellationToken: cancellationToken);
     }
