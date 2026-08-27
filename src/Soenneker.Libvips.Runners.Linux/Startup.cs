@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using Soenneker.Compression.Tar.Registrars;
 using Soenneker.GitHub.Repositories.Releases.Registrars;
 using Soenneker.Libvips.Runners.Linux.Utils;
 using Soenneker.Libvips.Runners.Linux.Utils.Abstract;
@@ -19,7 +18,6 @@ public static class Startup
             .AddDirectoryUtilAsSingleton()
             .AddFileDownloadUtilAsSingleton()
             .AddProcessUtilAsSingleton()
-            .AddTarUtilAsSingleton()
             .AddGitHubRepositoriesReleasesUtilAsSingleton()
             .AddRunnersManagerAsSingleton();
     }

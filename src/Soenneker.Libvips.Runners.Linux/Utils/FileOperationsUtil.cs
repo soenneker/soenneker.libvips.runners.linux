@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using Soenneker.Compression.Tar.Abstract;
 using Soenneker.GitHub.Repositories.Releases.Abstract;
 using Soenneker.Libvips.Runners.Linux.Utils.Abstract;
 using Soenneker.Utils.Directory.Abstract;
@@ -25,17 +24,15 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
     private readonly ILogger<FileOperationsUtil> _logger;
     private readonly IDirectoryUtil _directoryUtil;
     private readonly IGitHubRepositoriesReleasesUtil _releasesUtil;
-    private readonly ITarUtil _tarUtil;
     private readonly IProcessUtil _processUtil;
     private readonly IFileDownloadUtil _fileDownloadUtil;
 
     public FileOperationsUtil(ILogger<FileOperationsUtil> logger, IDirectoryUtil directoryUtil,
-        IGitHubRepositoriesReleasesUtil releasesUtil, ITarUtil tarUtil, IProcessUtil processUtil, IFileDownloadUtil fileDownloadUtil)
+        IGitHubRepositoriesReleasesUtil releasesUtil, IProcessUtil processUtil, IFileDownloadUtil fileDownloadUtil)
     {
         _logger = logger;
         _directoryUtil = directoryUtil;
         _releasesUtil = releasesUtil;
-        _tarUtil = tarUtil;
         _processUtil = processUtil;
         _fileDownloadUtil = fileDownloadUtil;
     }
@@ -52,7 +49,8 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         await DecompressGzip(asset, tarFile, cancellationToken);
 
         string extractionDirectory = await _directoryUtil.CreateTempDirectory(cancellationToken);
-        await _tarUtil.Extract(tarFile, extractionDirectory, cancellationToken);
+        await _processUtil.BashRun($"tar -xf \"{tarFile}\" -C \"{extractionDirectory}\"", downloadDirectory,
+            cancellationToken: cancellationToken);
 
         string stageDirectory = extractionDirectory;
 
