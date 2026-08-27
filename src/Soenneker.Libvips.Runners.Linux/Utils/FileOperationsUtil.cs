@@ -3,11 +3,13 @@ using System.IO;
 using System.IO.Compression;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Soenneker.Compression.Tar.Abstract;
 using Soenneker.GitHub.Repositories.Releases.Abstract;
 using Soenneker.Libvips.Runners.Linux.Utils.Abstract;
 using Soenneker.Utils.Directory.Abstract;
+using Soenneker.Utils.File.Download.Abstract;
 using Soenneker.Utils.Process.Abstract;
 
 namespace Soenneker.Libvips.Runners.Linux.Utils;
@@ -18,22 +20,24 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
     private const string Owner = "kleisauke";
     private const string Repository = "libvips-packaging";
     private const string AssetPattern = "linux-x64.tar.gz";
-    private const string InstallTools = "sudo apt-get update && sudo apt-get install -y --no-install-recommends libvips-tools";
+    private const string InstallTools = "sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential pkg-config libglib2.0-dev";
 
     private readonly ILogger<FileOperationsUtil> _logger;
     private readonly IDirectoryUtil _directoryUtil;
     private readonly IGitHubRepositoriesReleasesUtil _releasesUtil;
     private readonly ITarUtil _tarUtil;
     private readonly IProcessUtil _processUtil;
+    private readonly IFileDownloadUtil _fileDownloadUtil;
 
     public FileOperationsUtil(ILogger<FileOperationsUtil> logger, IDirectoryUtil directoryUtil,
-        IGitHubRepositoriesReleasesUtil releasesUtil, ITarUtil tarUtil, IProcessUtil processUtil)
+        IGitHubRepositoriesReleasesUtil releasesUtil, ITarUtil tarUtil, IProcessUtil processUtil, IFileDownloadUtil fileDownloadUtil)
     {
         _logger = logger;
         _directoryUtil = directoryUtil;
         _releasesUtil = releasesUtil;
         _tarUtil = tarUtil;
         _processUtil = processUtil;
+        _fileDownloadUtil = fileDownloadUtil;
     }
 
     public async ValueTask<string> Process(CancellationToken cancellationToken = default)
@@ -57,8 +61,14 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
 
         string binDirectory = Path.Combine(stageDirectory, "bin");
         Directory.CreateDirectory(binDirectory);
-        File.Copy("/usr/bin/vips", Path.Combine(binDirectory, "vips"), true);
-        File.Copy("/usr/bin/vipsheader", Path.Combine(binDirectory, "vipsheader"), true);
+
+        string versionsJson = await File.ReadAllTextAsync(Path.Combine(stageDirectory, "versions.json"), cancellationToken);
+        using JsonDocument versions = JsonDocument.Parse(versionsJson);
+        string version = versions.RootElement.GetProperty("vips").GetString()
+                         ?? throw new InvalidOperationException("The libvips distribution did not specify its vips version.");
+
+        await BuildTool("vips", version, stageDirectory, binDirectory, cancellationToken);
+        await BuildTool("vipsheader", version, stageDirectory, binDirectory, cancellationToken);
 
         await WriteLauncher(stageDirectory, "vips", cancellationToken);
         await WriteLauncher(stageDirectory, "vipsheader", cancellationToken);
@@ -68,6 +78,26 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
 
         _logger.LogInformation("Prepared Linux x64 libvips runtime at {StageDirectory}", stageDirectory);
         return stageDirectory;
+    }
+
+    private async ValueTask BuildTool(string tool, string version, string stageDirectory, string binDirectory, CancellationToken cancellationToken)
+    {
+        string sourcePath = Path.Combine(stageDirectory, $"{tool}.c");
+        string? source = await _fileDownloadUtil.Download($"https://raw.githubusercontent.com/libvips/libvips/v{version}/tools/{tool}.c",
+            log: false, cancellationToken: cancellationToken);
+
+        if (source is null)
+            throw new FileNotFoundException($"Could not download {tool}.c for libvips {version}.");
+
+        await File.WriteAllTextAsync(sourcePath, source, cancellationToken);
+
+        string outputPath = Path.Combine(binDirectory, tool);
+        string command = $"gcc -O2 -DGETTEXT_PACKAGE=\\\"vips\\\" -I\"{stageDirectory}/include\" " +
+                         $"$(pkg-config --cflags glib-2.0 gobject-2.0 gio-2.0) \"{sourcePath}\" -L\"{stageDirectory}/lib\" " +
+                         $"-Wl,-rpath,'$ORIGIN/../lib' -lvips $(pkg-config --libs glib-2.0 gobject-2.0 gio-2.0) -o \"{outputPath}\"";
+
+        await _processUtil.BashRun(command, stageDirectory, cancellationToken: cancellationToken);
+        File.Delete(sourcePath);
     }
 
     private static Task WriteLauncher(string stageDirectory, string executable, CancellationToken cancellationToken)
