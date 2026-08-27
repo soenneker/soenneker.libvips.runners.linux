@@ -64,9 +64,6 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         string version = versions.RootElement.GetProperty("vips").GetString()
                          ?? throw new InvalidOperationException("The libvips distribution did not specify its vips version.");
 
-        await DownloadHeader("vips.h", version, stageDirectory, cancellationToken);
-        await DownloadHeader("internal.h", version, stageDirectory, cancellationToken);
-
         await BuildTool("vips", version, stageDirectory, binDirectory, cancellationToken);
         await BuildTool("vipsheader", version, stageDirectory, binDirectory, cancellationToken);
 
@@ -80,33 +77,35 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         return stageDirectory;
     }
 
-    private async ValueTask DownloadHeader(string name, string version, string stageDirectory, CancellationToken cancellationToken)
-    {
-        string headerPath = Path.Combine(stageDirectory, "include", "vips", name);
-        string? header = await _fileDownloadUtil.Download(
-            $"https://raw.githubusercontent.com/libvips/libvips/v{version}/libvips/include/vips/{name}",
-            filePath: headerPath, log: false, cancellationToken: cancellationToken);
-
-        if (header is null)
-            throw new FileNotFoundException($"Could not download {name} for libvips {version}.");
-    }
-
     private async ValueTask BuildTool(string tool, string version, string stageDirectory, string binDirectory, CancellationToken cancellationToken)
     {
-        string sourcePath = Path.Combine(stageDirectory, $"{tool}.c");
+        string buildDirectory = Path.Combine(stageDirectory, "build", tool);
+        string headerDirectory = Path.Combine(buildDirectory, "vips");
+        Directory.CreateDirectory(headerDirectory);
+
+        string sourcePath = Path.Combine(buildDirectory, $"{tool}.c");
         string? source = await _fileDownloadUtil.Download($"https://raw.githubusercontent.com/libvips/libvips/v{version}/tools/{tool}.c",
             filePath: sourcePath, log: false, cancellationToken: cancellationToken);
 
         if (source is null)
             throw new FileNotFoundException($"Could not download {tool}.c for libvips {version}.");
 
+        foreach (string headerName in new[] {"vips.h", "internal.h"})
+        {
+            string? header = await _fileDownloadUtil.Download(
+                $"https://raw.githubusercontent.com/libvips/libvips/v{version}/libvips/include/vips/{headerName}",
+                filePath: Path.Combine(headerDirectory, headerName), log: false, cancellationToken: cancellationToken);
+
+            if (header is null)
+                throw new FileNotFoundException($"Could not download {headerName} for libvips {version}.");
+        }
+
         string outputPath = Path.Combine(binDirectory, tool);
-        string command = $"gcc -O2 -DGETTEXT_PACKAGE=\\\"vips\\\" -I\"{stageDirectory}/include\" " +
+        string command = $"gcc -O2 -DGETTEXT_PACKAGE=\\\"vips\\\" -I\"{buildDirectory}\" -I\"{stageDirectory}/include\" " +
                          $"$(pkg-config --cflags glib-2.0 gobject-2.0 gio-2.0) \"{sourcePath}\" -L\"{stageDirectory}/lib\" " +
                          $"-Wl,-rpath,'$ORIGIN/../lib' -lvips $(pkg-config --libs glib-2.0 gobject-2.0 gio-2.0) -o \"{outputPath}\"";
 
         await _processUtil.BashRun(command, stageDirectory, cancellationToken: cancellationToken);
-        File.Delete(sourcePath);
     }
 
     private static Task WriteLauncher(string stageDirectory, string executable, CancellationToken cancellationToken)
