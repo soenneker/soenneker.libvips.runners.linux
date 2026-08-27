@@ -54,8 +54,7 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         string extractionDirectory = await _directoryUtil.CreateTempDirectory(cancellationToken);
         await _tarUtil.Extract(tarFile, extractionDirectory, cancellationToken);
 
-        string stageDirectory = await _directoryUtil.CreateTempDirectory(cancellationToken);
-        CopyDirectory(extractionDirectory, stageDirectory);
+        string stageDirectory = extractionDirectory;
 
         await _processUtil.BashRun(InstallTools, stageDirectory, cancellationToken: cancellationToken);
 
@@ -66,6 +65,14 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         using JsonDocument versions = JsonDocument.Parse(versionsJson);
         string version = versions.RootElement.GetProperty("vips").GetString()
                          ?? throw new InvalidOperationException("The libvips distribution did not specify its vips version.");
+
+        string internalHeader = Path.Combine(stageDirectory, "include", "vips", "internal.h");
+        string? header = await _fileDownloadUtil.Download(
+            $"https://raw.githubusercontent.com/libvips/libvips/v{version}/libvips/include/vips/internal.h",
+            filePath: internalHeader, log: false, cancellationToken: cancellationToken);
+
+        if (header is null)
+            throw new FileNotFoundException($"Could not download internal.h for libvips {version}.");
 
         await BuildTool("vips", version, stageDirectory, binDirectory, cancellationToken);
         await BuildTool("vipsheader", version, stageDirectory, binDirectory, cancellationToken);
@@ -117,16 +124,4 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         await gzipStream.CopyToAsync(destinationStream, cancellationToken);
     }
 
-    private static void CopyDirectory(string sourceRoot, string destinationRoot)
-    {
-        foreach (string directory in Directory.EnumerateDirectories(sourceRoot, "*", SearchOption.AllDirectories))
-            Directory.CreateDirectory(Path.Combine(destinationRoot, Path.GetRelativePath(sourceRoot, directory)));
-
-        foreach (string file in Directory.EnumerateFiles(sourceRoot, "*", SearchOption.AllDirectories))
-        {
-            string destination = Path.Combine(destinationRoot, Path.GetRelativePath(sourceRoot, file));
-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-            File.Copy(file, destination, true);
-        }
-    }
 }
