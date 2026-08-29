@@ -7,7 +7,6 @@ using Serilog;
 using Soenneker.Enums.DeployEnvironment;
 using Soenneker.Extensions.LoggerConfiguration;
 using Soenneker.Extensions.ValueTask;
-
 namespace Soenneker.Libvips.Runners.Linux;
 
 public sealed class Program
@@ -16,6 +15,11 @@ public sealed class Program
 
     private static CancellationTokenSource? _cts;
 
+    /// <summary>
+    /// Runs the application using the supplied command-line arguments.
+    /// </summary>
+    /// <param name="args">Command-line arguments passed to the application.</param>
+    /// <returns>A task that completes when the application exits.</returns>
     public static async Task Main(string[] args)
     {
         _environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
@@ -48,6 +52,8 @@ public sealed class Program
     /// <summary>
     /// Used for WebApplicationFactory, cannot delete, cannot change access, cannot change number of parameters.
     /// </summary>
+    /// <param name="args">Command-line arguments passed to the application.</param>
+    /// <returns>A host builder configured with the application services and settings.</returns>
     public static IHostBuilder CreateHostBuilder(string[] args)
     {
         DeployEnvironment envEnum = DeployEnvironment.FromName(_environment);

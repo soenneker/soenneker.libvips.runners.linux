@@ -6,11 +6,14 @@ using Soenneker.Managers.Runners.Registrars;
 using Soenneker.Utils.Directory.Registrars;
 using Soenneker.Utils.File.Download.Registrars;
 using Soenneker.Utils.Process.Registrars;
-
 namespace Soenneker.Libvips.Runners.Linux;
 
 public static class Startup
 {
+    /// <summary>
+    /// Registers the services required by the application host.
+    /// </summary>
+    /// <param name="services">Service collection that receives the registration.</param>
     public static void ConfigureServices(IServiceCollection services)
     {
         services.AddHostedService<ConsoleHostedService>()
