@@ -5,6 +5,7 @@ using Soenneker.Libvips.Runners.Linux.Utils.Abstract;
 using Soenneker.Managers.Runners.Registrars;
 using Soenneker.Utils.Directory.Registrars;
 using Soenneker.Utils.File.Download.Registrars;
+using Soenneker.Utils.File.Registrars;
 using Soenneker.Utils.Process.Registrars;
 namespace Soenneker.Libvips.Runners.Linux;
 
@@ -20,6 +21,7 @@ public static class Startup
             .AddSingleton<IFileOperationsUtil, FileOperationsUtil>()
             .AddDirectoryUtilAsSingleton()
             .AddFileDownloadUtilAsSingleton()
+            .AddFileUtilAsSingleton()
             .AddProcessUtilAsSingleton()
             .AddGitHubRepositoriesReleasesUtilAsSingleton()
             .AddRunnersManagerAsSingleton();
