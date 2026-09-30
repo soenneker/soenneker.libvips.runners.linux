@@ -38,7 +38,7 @@ public sealed class ConsoleHostedService : IHostedService
             {
                 string stageDirectory = await _fileOperationsUtil.Process(cancellationToken);
                 await _runnersManager.PushIfChangesNeededForDirectory(Path.Combine(Constants.RuntimeIdentifier, "libvips"), stageDirectory,
-                    Constants.Library, $"https://github.com/soenneker/{Constants.Library}", false, cancellationToken);
+                    Constants.Library, $"https://github.com/soenneker/{Constants.Library}", false, cancellationToken, upstreamVersion: _fileOperationsUtil.Version);
                 _exitCode = 0;
             }
             catch (Exception exception)

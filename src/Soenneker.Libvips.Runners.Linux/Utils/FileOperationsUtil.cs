@@ -16,6 +16,8 @@ namespace Soenneker.Libvips.Runners.Linux.Utils;
 
 public sealed class FileOperationsUtil : IFileOperationsUtil
 {
+    public string? Version { get; private set; }
+
 
     private const string Owner = "kleisauke";
     private const string Repository = "libvips-packaging";
@@ -77,7 +79,7 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         await _processUtil.BashRun("./vips.sh --version", stageDirectory, cancellationToken: cancellationToken);
 
         _logger.LogInformation("Prepared Linux x64 libvips runtime at {StageDirectory}", stageDirectory);
-        await File.WriteAllTextAsync(Path.Combine(stageDirectory, "VERSION.txt"), version, cancellationToken);
+        Version = version;
         return stageDirectory;
     }
 

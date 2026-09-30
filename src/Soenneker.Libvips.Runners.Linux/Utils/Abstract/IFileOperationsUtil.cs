@@ -7,6 +7,9 @@ namespace Soenneker.Libvips.Runners.Linux.Utils.Abstract;
 /// </summary>
 public interface IFileOperationsUtil
 {
+    /// <summary>Gets the version of the prepared distribution.</summary>
+    string? Version { get; }
+
 
     /// <summary>
     /// Processes the pending work managed by the File Operations.
