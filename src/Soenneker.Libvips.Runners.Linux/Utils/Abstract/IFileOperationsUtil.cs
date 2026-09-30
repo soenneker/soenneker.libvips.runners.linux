@@ -7,6 +7,7 @@ namespace Soenneker.Libvips.Runners.Linux.Utils.Abstract;
 /// </summary>
 public interface IFileOperationsUtil
 {
+
     /// <summary>
     /// Processes the pending work managed by the File Operations.
     /// </summary>
